@@ -343,9 +343,6 @@ class SpeechToText {
   }
 
   Future<void> _onNotifyError(String errorJson) async {
-    if ( isNotListening ) {
-      return;
-    }
     Map<String, dynamic> errorMap = jsonDecode(errorJson);
     SpeechRecognitionError speechError =
         SpeechRecognitionError.fromJson(errorMap);
