@@ -60,7 +60,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
     private let busForNodeTap = 0
     private let speechBufferSize: AVAudioFrameCount = 1024
     
-    private var audioPath: String
+    private var audioPath: String?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "plugin.csdcorp.com/speech_to_text", binaryMessenger: registrar.messenger())
@@ -210,7 +210,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
         inputNode.removeTap(onBus: busForNodeTap);
         do {
             if let rememberedAudioCategory = rememberedAudioCategory {
-                try self.audioSession.setCategory(rememberedAudioCategory)
+                try self.audioSession.setCategory(rememberedAudioCategory as String)
             }
         }
         catch {
@@ -228,8 +228,8 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             setupRecognizerForLocale(locale: getLocale(localeStr))
             listeningSound?.play()
             rememberedAudioCategory = self.audioSession.category as AVAudioSession.Category
-            try self.audioSession.setCategory(AVAudioSession.Category.playAndRecord, mode: AVAudioSession.Mode.default)
-            try self.audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+           try self.audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord, mode: AVAudioSessionModeDefault)
+            try self.audioSession.setActive(true, with: .notifyOthersOnDeactivation)
             let inputNode = self.audioEngine.inputNode
             self.currentRequest = SFSpeechAudioBufferRecognitionRequest()
             
