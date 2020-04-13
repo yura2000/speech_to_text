@@ -59,6 +59,7 @@ class SpeechToText {
   static const String notifyErrorMethod = 'notifyError';
   static const String notifyStatusMethod = 'notifyStatus';
   static const String soundLevelChangeMethod = "soundLevelChange";
+  static const String audioPathMethod = 'audioPath';
   static const String notListeningStatus = "notListening";
   static const String listeningStatus = "listening";
 
@@ -80,6 +81,7 @@ class SpeechToText {
   SpeechErrorListener errorListener;
   SpeechStatusListener statusListener;
   SpeechSoundLevelChange _soundLevelChange;
+  String lastAudioPath;
 
   final MethodChannel channel;
   factory SpeechToText() => _instance;
@@ -324,6 +326,11 @@ class SpeechToText {
       case soundLevelChangeMethod:
         if (call.arguments is double) {
           _onSoundLevelChange(call.arguments);
+        }
+        break;
+      case audioPathMethod:
+        if (call.arguments is String) {
+          lastAudioPath = call.arguments;
         }
         break;
       default:
