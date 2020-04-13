@@ -54,6 +54,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
     private var returnPartialResults: Bool = true
     private let audioSession = AVAudioSession.sharedInstance()
     private let audioEngine = AVAudioEngine()
+    private let audioRecorder:AVAudioRecorder!
     private let jsonEncoder = JSONEncoder()
     private let busForNodeTap = 0
     private let speechBufferSize: AVAudioFrameCount = 1024
@@ -200,6 +201,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
     private func stopCurrentListen( ) {
         currentRequest?.endAudio()
         audioEngine.stop()
+        audioRecorder.stop()
         let inputNode = audioEngine.inputNode
         inputNode.removeTap(onBus: busForNodeTap);
         do {
@@ -222,10 +224,11 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             setupRecognizerForLocale(locale: getLocale(localeStr))
             listeningSound?.play()
             rememberedAudioCategory = self.audioSession.category as AVAudioSession.Category
-            try self.audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord, mode: AVAudioSessionModeDefault)
-            try self.audioSession.setActive(true, with: .notifyOthersOnDeactivation)
+            try self.audioSession.setCategory(AVAudioSession.Category.playAndRecord, mode: AVAudioSession.Mode.default)
+            try self.audioSession.setActive(true, withFlags: .notifyOthersOnDeactivation)
             let inputNode = self.audioEngine.inputNode
             self.currentRequest = SFSpeechAudioBufferRecognitionRequest()
+            
             guard let currentRequest = self.currentRequest else {
                 result( false )
                 return
@@ -240,6 +243,24 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             self.audioEngine.prepare()
             try self.audioEngine.start()
             self.invokeFlutter( SwiftSpeechToTextCallbackMethods.notifyStatus, arguments: SpeechToTextStatus.listening.rawValue )
+            var documents = NSSearchPathForDirectoriesInDomains( FileManager.SearchPathDirectory.documentDirectory,  FileManager.SearchPathDomainMask.userDomainMask, true)[0]
+            var str =  documents.appendingPathComponent("recordTest.caf")
+            var url = NSURL.fileURL(withPath:str as String)
+
+            var recordSettings: [String:Any] = [AVFormatIDKey:kAudioFormatAppleIMA4,
+                AVSampleRateKey:44100.0,
+                AVNumberOfChannelsKey:2,AVEncoderBitRateKey:12800,
+                AVLinearPCMBitDepthKey:16,
+                AVEncoderAudioQualityKey:AVAudioQuality.max.rawValue]
+
+            var error: NSError?
+
+            audioRecorder = AVAudioRecorder(URL:url, settings: recordSettings, error: &error)
+            if let e = error {
+                print(e.localizedDescription)
+            } else {
+                audioRecorder.record()
+            }
         }
         catch {
             result( false )
