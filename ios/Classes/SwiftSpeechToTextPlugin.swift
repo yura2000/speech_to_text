@@ -13,6 +13,7 @@ public enum SwiftSpeechToTextMethods: String {
 }
 
 public enum SwiftSpeechToTextCallbackMethods: String {
+    case audioPath
     case textRecognition
     case notifyStatus
     case notifyError
@@ -54,10 +55,12 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
     private var returnPartialResults: Bool = true
     private let audioSession = AVAudioSession.sharedInstance()
     private let audioEngine = AVAudioEngine()
-    private let audioRecorder:AVAudioRecorder!
+    private var audioRecorder: AVAudioRecorder!
     private let jsonEncoder = JSONEncoder()
     private let busForNodeTap = 0
     private let speechBufferSize: AVAudioFrameCount = 1024
+    
+    private var audioPath: String
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "plugin.csdcorp.com/speech_to_text", binaryMessenger: registrar.messenger())
@@ -202,11 +205,12 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
         currentRequest?.endAudio()
         audioEngine.stop()
         audioRecorder.stop()
+        invokeFlutter(.audioPath, arguments: audioPath)
         let inputNode = audioEngine.inputNode
         inputNode.removeTap(onBus: busForNodeTap);
         do {
             if let rememberedAudioCategory = rememberedAudioCategory {
-                try self.audioSession.setCategory(rememberedAudioCategory as String)
+                try self.audioSession.setCategory(rememberedAudioCategory)
             }
         }
         catch {
@@ -225,7 +229,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             listeningSound?.play()
             rememberedAudioCategory = self.audioSession.category as AVAudioSession.Category
             try self.audioSession.setCategory(AVAudioSession.Category.playAndRecord, mode: AVAudioSession.Mode.default)
-            try self.audioSession.setActive(true, withFlags: .notifyOthersOnDeactivation)
+            try self.audioSession.setActive(true, options: .notifyOthersOnDeactivation)
             let inputNode = self.audioEngine.inputNode
             self.currentRequest = SFSpeechAudioBufferRecognitionRequest()
             
@@ -244,23 +248,20 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             try self.audioEngine.start()
             self.invokeFlutter( SwiftSpeechToTextCallbackMethods.notifyStatus, arguments: SpeechToTextStatus.listening.rawValue )
             var documents = NSSearchPathForDirectoriesInDomains( FileManager.SearchPathDirectory.documentDirectory,  FileManager.SearchPathDomainMask.userDomainMask, true)[0]
-            var str =  documents.appendingPathComponent("recordTest.caf")
-            var url = NSURL.fileURL(withPath:str as String)
+            documents.append("recordTest.caf")
+            let str =  documents
+            
+            let url = URL(fileURLWithPath: str)
+            audioPath = str
 
-            var recordSettings: [String:Any] = [AVFormatIDKey:kAudioFormatAppleIMA4,
-                AVSampleRateKey:44100.0,
-                AVNumberOfChannelsKey:2,AVEncoderBitRateKey:12800,
-                AVLinearPCMBitDepthKey:16,
-                AVEncoderAudioQualityKey:AVAudioQuality.max.rawValue]
+            let recordSettings: [String: Any] = [AVFormatIDKey: kAudioFormatAppleIMA4,
+                AVSampleRateKey: 44100.0,
+                AVNumberOfChannelsKey: 2, AVEncoderBitRateKey:12800,
+                AVLinearPCMBitDepthKey: 16,
+                AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue]
 
-            var error: NSError?
-
-            audioRecorder = AVAudioRecorder(URL:url, settings: recordSettings, error: &error)
-            if let e = error {
-                print(e.localizedDescription)
-            } else {
-                audioRecorder.record()
-            }
+            audioRecorder = try AVAudioRecorder(url: url, settings: recordSettings)
+            audioRecorder.record()
         }
         catch {
             result( false )
