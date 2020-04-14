@@ -248,7 +248,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             try self.audioEngine.start()
             self.invokeFlutter( SwiftSpeechToTextCallbackMethods.notifyStatus, arguments: SpeechToTextStatus.listening.rawValue )
             var documents = NSSearchPathForDirectoriesInDomains( FileManager.SearchPathDirectory.documentDirectory,  FileManager.SearchPathDomainMask.userDomainMask, true)[0]
-            documents.append("recordTest.caf")
+            documents.append("/recordTest.caf")
             let str =  documents
             
             let url = URL(fileURLWithPath: str)
