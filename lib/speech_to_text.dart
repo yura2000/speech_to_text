@@ -76,12 +76,13 @@ class SpeechToText {
   double _lastSoundLevel = 0;
   Timer _listenTimer;
   LocaleName _systemLocale;
+  String _lastAudioPath;
   SpeechRecognitionError _lastError;
   SpeechResultListener _resultListener;
   SpeechErrorListener errorListener;
   SpeechStatusListener statusListener;
   SpeechSoundLevelChange _soundLevelChange;
-  String lastAudioPath;
+  Function (String) onAudioPathChange;
 
   final MethodChannel channel;
   factory SpeechToText() => _instance;
@@ -330,7 +331,8 @@ class SpeechToText {
         break;
       case audioPathMethod:
         if (call.arguments is String) {
-          lastAudioPath = call.arguments;
+          _lastAudioPath = call.arguments;
+          onAudioPathChange(_lastAudioPath);
         }
         break;
       default:
