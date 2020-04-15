@@ -331,8 +331,10 @@ class SpeechToText {
         break;
       case audioPathMethod:
         if (call.arguments is String) {
-          _lastAudioPath = call.arguments;
-          onAudioPathChange(_lastAudioPath);
+          if(_lastAudioPath != call.arguments) {
+            _lastAudioPath = call.arguments;
+            onAudioPathChange(_lastAudioPath);
+          }
         }
         break;
       default:
