@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import Speech
+import Foundation
 
 public enum SwiftSpeechToTextMethods: String {
     case has_permission
@@ -167,10 +168,10 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
         }
         recognizer?.delegate = self
         setupListeningSound()
-
+        
         initResult( true, result );
     }
-
+    
     private func setupRecognizerForLocale( locale: Locale ) {
         if ( previousLocale == locale ) {
             return
@@ -205,7 +206,6 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
         currentRequest?.endAudio()
         audioEngine.stop()
         audioRecorder.stop()
-        invokeFlutter(.audioPath, arguments: audioPath)
         let inputNode = audioEngine.inputNode
         inputNode.removeTap(onBus: busForNodeTap);
         do {
@@ -228,7 +228,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             setupRecognizerForLocale(locale: getLocale(localeStr))
             listeningSound?.play()
             rememberedAudioCategory = self.audioSession.category as AVAudioSession.Category
-           try self.audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord, mode: AVAudioSessionModeDefault)
+            try self.audioSession.setCategory(AVAudioSessionCategoryPlayAndRecord, mode: AVAudioSessionModeDefault)
             try self.audioSession.setActive(true, with: .notifyOthersOnDeactivation)
             let inputNode = self.audioEngine.inputNode
             self.currentRequest = SFSpeechAudioBufferRecognitionRequest()
@@ -247,19 +247,19 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             self.audioEngine.prepare()
             try self.audioEngine.start()
             self.invokeFlutter( SwiftSpeechToTextCallbackMethods.notifyStatus, arguments: SpeechToTextStatus.listening.rawValue )
-            var documents = NSSearchPathForDirectoriesInDomains( FileManager.SearchPathDirectory.documentDirectory,  FileManager.SearchPathDomainMask.userDomainMask, true)[0]
-            documents.append("/recordTest.caf")
+            var documents = FileManager.default.temporaryDirectory
+            documents.appendPathComponent("\(UUID().uuidString).caf")
             let str =  documents
             
-            let url = URL(fileURLWithPath: str)
-            audioPath = str
+            let url = str
+            audioPath = str.relativePath
 
             let recordSettings: [String: Any] = [AVFormatIDKey: kAudioFormatAppleIMA4,
-                AVSampleRateKey: 44100.0,
-                AVNumberOfChannelsKey: 2, AVEncoderBitRateKey:12800,
-                AVLinearPCMBitDepthKey: 16,
-                AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue]
-
+                                                 AVSampleRateKey: 44100.0,
+                                                 AVNumberOfChannelsKey: 2, AVEncoderBitRateKey:12800,
+                                                 AVLinearPCMBitDepthKey: 16,
+                                                 AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue]
+            
             audioRecorder = try AVAudioRecorder(url: url, settings: recordSettings)
             audioRecorder.record()
         }
@@ -309,6 +309,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
         do {
             let speechMsg = try jsonEncoder.encode(speechInfo)
             invokeFlutter( SwiftSpeechToTextCallbackMethods.textRecognition, arguments: String( data:speechMsg, encoding: .utf8) )
+            invokeFlutter(.audioPath, arguments: audioPath)
         } catch {
             print("Could not encode JSON")
         }
@@ -332,7 +333,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             self.channel.invokeMethod( method.rawValue, arguments: arguments )
         }
     }
-        
+    
 }
 
 @available(iOS 10.0, *)
@@ -376,7 +377,7 @@ extension SwiftSpeechToTextPlugin : SFSpeechRecognitionTaskDelegate {
 extension SwiftSpeechToTextPlugin : AVAudioPlayerDelegate {
     
     public func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer,
-                                     successfully flag: Bool) {
+                                            successfully flag: Bool) {
         
     }
 }
