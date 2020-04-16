@@ -248,17 +248,16 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
             try self.audioEngine.start()
             self.invokeFlutter( SwiftSpeechToTextCallbackMethods.notifyStatus, arguments: SpeechToTextStatus.listening.rawValue )
             var documents = FileManager.default.temporaryDirectory
-            documents.appendPathComponent("\(UUID().uuidString).caf")
+            documents.appendPathComponent("\(UUID().uuidString).m4a")
             let str =  documents
             
             let url = str
             audioPath = str.relativePath
 
-            let recordSettings: [String: Any] = [AVFormatIDKey: kAudioFormatAppleIMA4,
-                                                 AVSampleRateKey: 44100.0,
-                                                 AVNumberOfChannelsKey: 2, AVEncoderBitRateKey:12800,
-                                                 AVLinearPCMBitDepthKey: 16,
-                                                 AVEncoderAudioQualityKey: AVAudioQuality.max.rawValue]
+            let recordSettings: [String: Any] = [AVSampleRateKey : NSNumber(value: Float(16000)),
+                                                 AVFormatIDKey : NSNumber(value: Int32(kAudioFormatMPEG4AAC)),
+                                                 AVNumberOfChannelsKey : NSNumber(value: 1),
+                                                 AVEncoderAudioQualityKey : NSNumber(value: Int32(AVAudioQuality.low.rawValue))]
             
             audioRecorder = try AVAudioRecorder(url: url, settings: recordSettings)
             audioRecorder.record()
