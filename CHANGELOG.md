@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.3.0
+
+### New
+  * new parameter `onDevice` on the `listen` method enforces on device recognition for sensitive content
+  * onSoundLevelChange now supported on iOS
+  * added compile troubleshooting help to README.md
+
+## 2.2.0
+
+### New
+  * improved error handling and logging in the iOS implementation
+  * added general guides for iOS to the README
+  * moved stress testing out of the main example 
+  * iOS now defaults to using the speaker rather than the receiver for start /stop sounds when no headphones
+### Fix
+  * iOS now properly deactivates the audio session when no longer listening
+  * start and stop sounds on iOS should be more reliable when available
+
+## 2.1.0
+### Breaking
+  * `listenFor` now calls `stop` rather than `cancel` as this seems like more useful behaviour
+
+### Fix
+  * Android no longer stops or cancels the speech recognizer if it has already been shutdown by a 
+  timeout or other platform behaviour. 
+  * Android no longer tries to restart the listener when it is already active
+  * Now properly notifies errors that happen after listening stops due to platform callback rather than 
+  client request. See https://github.com/csdcorp/speech_to_text/issues/51
+
+## 2.0.1
+### Fix
+  * Resolves an issue with the Android implementation not handling permission requests properly on apps 
+  that didn't use the 1.12.x plugin APIs for registration. The permission dialog would not appear and 
+  permission was denied.  
+
+
+## 2.0.0
+
+### Breaking
+
+  * Upgraded to New Swift 1.12 plugin structure, may work with older Flutter version but not guaranteed
+  
+### New
+
+  * the plugin now requests both speech and microphone permission on initialize on iOS
+  * added `debugLogging` parameter to the `initialize` method to control native logging
+
+### Fix
+
+  * The Android implementation now blocks duplicate results notifications. It appears that at least on some 
+  Android versions the final results notification onResults is notified twice when Android automatically
+  terminates the session due to a pause time. The de-duplication looks for successive notifications 
+  with < 100 ms between them and blocks the second. If you miss any onResult notifications please post 
+  an issue. 
+
 ## 1.1.0
 
 ### New

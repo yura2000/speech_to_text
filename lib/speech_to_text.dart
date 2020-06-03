@@ -17,12 +17,12 @@ typedef SpeechResultListener = void Function(SpeechRecognitionResult result);
 /// https://developer.android.com/reference/android/speech/SpeechRecognizer
 ///   "error_audio_error"
 ///   "error_client"
-///   "error_permission" 
+///   "error_permission"
 ///   "error_network"
 ///   "error_network_timeout"
-///   "error_no_match" 
-///   "error_busy" 
-///   "error_server" 
+///   "error_no_match"
+///   "error_busy"
+///   "error_server"
 ///   "error_speech_timeout"
 /// See the [onError] argument on the [initialize] method for use.
 typedef SpeechErrorListener = void Function(
@@ -71,6 +71,10 @@ class SpeechToText {
   bool _recognized = false;
   bool _listening = false;
   bool _cancelOnError = false;
+
+  /// True if not listening or the user called cancel / stop, false
+  /// if cancel/stop were invoked by timeout or error condition.
+  bool _userEnded = false;
   String _lastRecognized = "";
   String _lastStatus = "";
   double _lastSoundLevel = 0;
@@ -117,8 +121,8 @@ class SpeechToText {
   bool get isAvailable => _initWorked;
 
   /// True if [listen] succeeded and [stop] or [cancel] has not been called.
-  /// 
-  /// Also goes false when listening times out if listenFor was set. 
+  ///
+  /// Also goes false when listening times out if listenFor was set.
   bool get isListening => _listening;
   bool get isNotListening => !isListening;
 
@@ -156,15 +160,21 @@ class SpeechToText {
   /// timeout, or failure of the device speech recognition.
   /// [onStatus] is an optional listener for status changes from
   /// listening to not listening.
+  /// [debugLogging] controls whether there is detailed logging from the underlying
+  /// plugins. It is off by default, usually only useful for troubleshooting issues
+  /// with a paritcular OS version or device, fairly verbose
   Future<bool> initialize(
-      {SpeechErrorListener onError, SpeechStatusListener onStatus}) async {
+      {SpeechErrorListener onError,
+      SpeechStatusListener onStatus,
+      debugLogging = false}) async {
     if (_initWorked) {
       return Future.value(_initWorked);
     }
     errorListener = onError;
     statusListener = onStatus;
     channel.setMethodCallHandler(_handleCallbacks);
-    _initWorked = await channel.invokeMethod('initialize');
+    _initWorked = await channel
+        .invokeMethod('initialize', {"debugLogging": debugLogging});
     return _initWorked;
   }
 
@@ -179,6 +189,11 @@ class SpeechToText {
   /// *Note:* Cannot be used until a successful [initialize] call. Should
   /// only be used after a successful [listen] call.
   Future<void> stop() async {
+    _userEnded = true;
+    return _stop();
+  }
+
+  Future<void> _stop() async {
     if (!_initWorked) {
       return;
     }
@@ -197,6 +212,11 @@ class SpeechToText {
   /// *Note* Cannot be used until a successful [initialize] call. Should only
   /// be used after a successful [listen] call.
   Future<void> cancel() async {
+    _userEnded = true;
+    return _cancel();
+  }
+
+  Future<void> _cancel() async {
     if (!_initWorked) {
       return;
     }
@@ -237,28 +257,37 @@ class SpeechToText {
   ///
   /// [partialResults] if true the listen reports results as they are recognized,
   /// when false only final results are reported. Defaults to true.
+  ///
+  /// [onDevice] if true the listen attempts to recognize locally with speech never
+  /// leaving the device. If it cannot do this the listen attempt will fail. This is
+  /// usually only needed for sensitive content where privacy or security is a concern.
   Future listen(
       {SpeechResultListener onResult,
       Duration listenFor,
       String localeId,
       SpeechSoundLevelChange onSoundLevelChange,
       cancelOnError = false,
-      partialResults = true}) async {
+      partialResults = true,
+      onDevice = false}) async {
     if (!_initWorked) {
       throw SpeechToTextNotInitializedException();
     }
+    _userEnded = false;
     _cancelOnError = cancelOnError;
     _recognized = false;
     _resultListener = onResult;
     _soundLevelChange = onSoundLevelChange;
-    Map<String, dynamic> listenParams = {"partialResults": partialResults};
+    Map<String, dynamic> listenParams = {
+      "partialResults": partialResults,
+      "onDevice": onDevice
+    };
     if (null != localeId) {
       listenParams["localeId"] = localeId;
     }
     channel.invokeMethod(listenMethod, listenParams);
     if (null != listenFor) {
       _listenTimer = Timer(listenFor, () {
-        cancel();
+        _stop();
       });
     }
   }
@@ -307,7 +336,7 @@ class SpeechToText {
   }
 
   Future _handleCallbacks(MethodCall call) async {
-    print("SpeechToText call: ${call.method} ${call.arguments}");
+    // print("SpeechToText call: ${call.method} ${call.arguments}");
     switch (call.method) {
       case textRecognitionMethod:
         if (call.arguments is String) {
@@ -343,6 +372,7 @@ class SpeechToText {
 
   void _onTextRecognition(String resultJson) {
     _recognized = true;
+    // print("Recognized text $resultJson");
     Map<String, dynamic> resultMap = jsonDecode(resultJson);
     SpeechRecognitionResult speechResult =
         SpeechRecognitionResult.fromJson(resultMap);
@@ -354,29 +384,32 @@ class SpeechToText {
   }
 
   Future<void> _onNotifyError(String errorJson) async {
+    if (isNotListening && _userEnded) {
+      return;
+    }
     Map<String, dynamic> errorMap = jsonDecode(errorJson);
     SpeechRecognitionError speechError =
         SpeechRecognitionError.fromJson(errorMap);
     _lastError = speechError;
-    if (_cancelOnError && speechError.permanent) {
-      await cancel();
-    }
     if (null != errorListener) {
       errorListener(speechError);
+    }
+    if (_cancelOnError && speechError.permanent) {
+      await _cancel();
     }
   }
 
   void _onNotifyStatus(String status) {
     _lastStatus = status;
     _listening = status == listeningStatus;
-    print(status);
+    // print(status);
     if (null != statusListener) {
       statusListener(status);
     }
   }
 
   void _onSoundLevelChange(double level) {
-    if ( isNotListening ) {
+    if (isNotListening) {
       return;
     }
     _lastSoundLevel = level;

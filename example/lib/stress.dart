@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
@@ -15,9 +14,9 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _hasSpeech = false;
+  bool _stressTest = false;
   double level = 0.0;
-  double minSoundLevel = 50000;
-  double maxSoundLevel = -50000;
+  int _stressLoops = 0;
   String lastWords = "";
   String lastError = "";
   String lastStatus = "";
@@ -70,6 +69,10 @@ class _MyAppState extends State<MyApp> {
                     FlatButton(
                       child: Text('Initialize'),
                       onPressed: _hasSpeech ? null : initSpeechState,
+                    ),
+                    FlatButton(
+                      child: Text('Stress Test'),
+                      onPressed: stressTest,
                     ),
                   ],
                 ),
@@ -199,6 +202,34 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  void stressTest() {
+    if (_stressTest) {
+      return;
+    }
+    _stressLoops = 0;
+    _stressTest = true;
+    print("Starting stress test...");
+    startListening();
+  }
+
+  void changeStatusForStress(String status) {
+    if (!_stressTest) {
+      return;
+    }
+    if (speech.isListening) {
+      stopListening();
+    } else {
+      if (_stressLoops >= 100) {
+        _stressTest = false;
+        print("Stress test complete.");
+        return;
+      }
+      print("Stress loop: $_stressLoops");
+      ++_stressLoops;
+      startListening();
+    }
+  }
+
   void startListening() {
     lastWords = "";
     lastError = "";
@@ -233,24 +264,19 @@ class _MyAppState extends State<MyApp> {
   }
 
   void soundLevelListener(double level) {
-    minSoundLevel = min(minSoundLevel, level);
-    maxSoundLevel = max(maxSoundLevel, level);
-    // print("sound level $level: $minSoundLevel - $maxSoundLevel ");
     setState(() {
       this.level = level;
     });
   }
 
   void errorListener(SpeechRecognitionError error) {
-    // print("Received error status: $error, listening: ${speech.isListening}");
     setState(() {
       lastError = "${error.errorMsg} - ${error.permanent}";
     });
   }
 
   void statusListener(String status) {
-    // print(
-    // "Received listener status: $status, listening: ${speech.isListening}");
+    changeStatusForStress(status);
     setState(() {
       lastStatus = "$status";
     });
