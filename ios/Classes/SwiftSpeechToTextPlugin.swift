@@ -277,7 +277,7 @@ public class SwiftSpeechToTextPlugin: NSObject, FlutterPlugin {
         inputNode.removeTap(onBus: busForNodeTap);
         do {
             if let rememberedAudioCategory = rememberedAudioCategory {
-                try self.audioSession.setCategory(rememberedAudioCategory as String)
+                try self.audioSession.setCategory(AVAudioSession.Category(rawValue: rememberedAudioCategory.rawValue as String))
             }
         }
         catch {
